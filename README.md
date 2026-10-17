@@ -1,106 +1,218 @@
 # PatchProof
 
-PatchProof is an open-source project to test whether a proposed security fix
-removes a vulnerability without breaking expected application behaviour. It is
-being built in small, tested phases. The current implementation verifies
-unified diffs against a bundled lab, supports deterministic mock and Anthropic
-providers, and runs repeatable benchmarks.
+PatchProof is a small verification engine for AI-proposed security fixes. It
+checks whether a diff fixes a known vulnerability in a bundled demonstration
+case without breaking that case's expected behaviour. A model's patch is
+untrusted input; passing a visible security test alone is not enough for a
+verified verdict.
 
-## Development setup
+PatchProof is **not a general-purpose vulnerability scanner**. It currently
+supports only the three intentionally vulnerable cases shipped under `lab/`.
+It does not scan arbitrary repositories, software versions, hosts, or services.
 
-Requirements: Node.js 22.13 or newer within the Node 22 major release, and npm.
+## Architecture
+
+```mermaid
+flowchart TD
+    A[Bundled vulnerable case] --> B[Provider prompt: source + description + visible tests]
+    B --> C[Mock provider or Anthropic API]
+    C --> D[Candidate unified diff + prompt/model record]
+    D --> E[Static diff and path validation]
+    E --> F[Docker sandbox: no network, non-root, read-only root]
+    A --> G[Reproduce vulnerability on original snapshot]
+    G --> F
+    F --> H[Security regression tests]
+    F --> I[Visible regression tests]
+    F --> J[Hidden holdout tests]
+    F --> K[Behaviour checks]
+    H --> L[Verdict + JSON/Markdown evidence]
+    I --> L
+    J --> L
+    K --> L
+    L --> M[Benchmark metrics and naive-checker comparison]
+```
+
+## Quick start
+
+Requirements: Node.js `>=22.13 <23`, npm, and Docker with permission to access
+its daemon. The full verify and benchmark commands require Docker.
 
 ```sh
 npm ci
 npm run lint
 npm run typecheck
 npm test
-npm run dev -- --help
+npm run sandbox:build
 ```
 
-The dependency versions are pinned in `package.json` and `package-lock.json`.
-
-## Verify a patch
-
-Docker is required. The reference patch for a case provides a quick successful
-example:
+For a smoke test, first verify the known-good reference patch:
 
 ```sh
-npm run sandbox:build
 npm run dev -- verify --case sql-injection --patch lab/cases/sql-injection/reference.patch
 ```
 
-PatchProof first checks that the vulnerable snapshot is exploitable, then
-applies the diff and runs the visible security tests, regressions, hidden
-holdouts, and behaviour checks. It writes `verification.json` and
-`verification.md` under `results/<case>/<run-id>/`.
+Then try the deliberately narrow patch, which blocks only known payloads:
 
-The validator limits patches to the case's `source.ts`, rejects changes to
-tests/configuration and unsafe paths, and enforces size limits. Untrusted
-source is copied and executed only inside the Docker sandbox: network disabled,
-read-only root filesystem, non-root user, CPU/memory/process limits, and a
-bounded writable tmpfs. Docker image construction installs pinned project
-dependencies before any candidate patch is run; the verification container
-itself has no network and receives no host credentials.
+```sh
+npm run dev -- verify --case sql-injection --patch lab/cases/sql-injection/known-bad/narrow-blacklist.patch
+```
+
+Successful and unsuccessful checks write JSON and Markdown evidence to
+`results/<case>/<run-id>/`. The CLI prints the verdict and relative evidence
+paths. The following are representative CLI responses; run IDs and evidence
+directories are generated for each run:
+
+```json
+{
+  "verdict": "VERIFIED_FIX",
+  "reasoning": "The patch reproduces the baseline flaw, passes security and regression checks, and preserves holdout and behaviour checks.",
+  "runId": "<generated-run-id>",
+  "evidence": {
+    "json": "results/sql-injection/<generated-run-id>/verification.json",
+    "markdown": "results/sql-injection/<generated-run-id>/verification.md"
+  }
+}
+```
+
+The narrow blacklist is expected to produce `FALSE_SUCCESS`: visible payloads
+are blocked, but a mutated holdout payload still exercises the vulnerability.
+The patch that disables the endpoint instead produces `REGRESSION`. These are
+expected outcomes, not a promise that arbitrary patches can be classified
+perfectly.
+
+For example, the narrow blacklist's response has this shape:
+
+```json
+{
+  "verdict": "FALSE_SUCCESS",
+  "reasoning": "Visible checks pass, but at least one hidden holdout test fails.",
+  "runId": "<generated-run-id>",
+  "evidence": {
+    "json": "results/sql-injection/<generated-run-id>/verification.json",
+    "markdown": "results/sql-injection/<generated-run-id>/verification.md"
+  }
+}
+```
+
+The Docker daemon was not accessible in the environment used to prepare this
+repository update, so these snippets document the CLI response contract and
+are not claimed as captured end-to-end run logs. A successful Docker run should
+be captured before presenting them as observed output.
 
 ## Propose a patch
 
-The mock provider is deterministic and requires no credentials:
+The mock provider needs no credentials and deterministically cycles through a
+reference fix, an ineffective change, a narrow blacklist, an endpoint-disabling
+patch, and an invalid patch:
 
 ```sh
 npm run dev -- propose --case sql-injection --provider mock
+npm run dev -- propose --case sql-injection --provider mock --attempt 3
 ```
 
-This stores `candidate.diff` and `proposal.json` under `results/proposals/`.
-The JSON records the exact prompt, model ID, parameters, and hashes. Mock
-attempts cycle through a reference fix, an ineffective fix, a narrow blacklist,
-an endpoint-disabling patch, and an invalid diff. Use `--attempt N` to select
-the deterministic scenario for an individual proposal.
+The diff and `proposal.json` are saved under `results/proposals/`. Each record
+contains the exact prompt, provider/model ID, generation parameters, prompt and
+source hashes, patch hash, and (for mock runs) the scenario name.
 
-Anthropic is opt-in and requires an API key from the environment. Do not put
-secrets in source control:
+Anthropic is opt-in. Set `ANTHROPIC_API_KEY` in the environment; never commit an
+API key. `.env.example` documents the variable names and contains no secret.
+`ANTHROPIC_MODEL` can override the default model:
 
 ```sh
 ANTHROPIC_API_KEY=... npm run dev -- propose --case sql-injection --provider anthropic
 ```
 
-`ANTHROPIC_MODEL` may override the provider's default model ID. The proposal
-prompt includes only the vulnerable source, case description, and visible
-security/regression tests; holdout tests and known patches are excluded.
+The provider prompt contains the vulnerable source, case description, visible
+security tests, and visible regression tests. It never reads or includes
+holdout tests, known-bad patches, or the reference patch. The tests and lab
+code are public to a human inspecting this repository, so this is not a
+secret-test benchmark against a model that can inspect the repository.
 
 ## Benchmark
 
-Run five deterministic mock attempts for each case (Docker required):
+Run five deterministic mock attempts per bundled case:
 
 ```sh
 npm run bench -- --provider mock --attempts 5
 ```
 
-The JSON and Markdown report are written under `results/benchmarks/`. Rates
-are reported for each verifier verdict. The report also compares the naive
-checker (accept if visible security tests pass) with PatchProof's
-`VERIFIED_FIX` verdict, including naive false accepts rejected by regression,
-holdout, or behaviour checks. CI runs this mock benchmark without an API key.
+Reports are written to `results/benchmarks/<benchmark-id>/`. The JSON includes
+counts and rates for each verdict overall and by case, per-attempt evidence
+paths, model IDs, naive-checker accepts, and false accepts. The Markdown
+compares the naive rule ("the visible security test passes") with PatchProof's
+`VERIFIED_FIX` verdict.
 
-## Docker
+CI runs this mock benchmark and fails if it does not catch at least one
+false-success case. A separate manually triggered GitHub Actions workflow runs
+the Anthropic benchmark using the `ANTHROPIC_API_KEY` repository secret and
+uploads its evidence as a workflow artifact.
 
-Build and run the packaged CLI:
+## Verification pipeline
 
-```sh
-docker build -t patchproof .
-docker run --rm patchproof --help
-```
+For a valid patch, PatchProof:
 
-This regular image packages the CLI. It is not the sandbox image used for
-untrusted patch execution; that image is built from `Dockerfile.sandbox`.
+1. Confirms the original vulnerable snapshot fails its security test and
+   passes the case's reproduction test.
+2. Validates one unified diff for exactly `source.ts`, with path, format, byte,
+   and changed-line limits. Tests, configuration, lockfiles, and CI files
+   cannot be changed by the candidate patch.
+3. Builds and runs the sandbox image. Candidate source is applied and tested
+   only inside the container.
+4. Runs security, visible regression, hidden holdout, and behaviour tests.
+5. Writes source and patch hashes, stage results/output, sandbox settings,
+   verdict, and reasoning to JSON and Markdown evidence.
 
-## Project status
+The runner uses Docker `--network=none`, a read-only root filesystem, a
+non-root UID, dropped capabilities, `no-new-privileges`, CPU/memory/process
+limits, bounded writable tmpfs mounts, and per-stage timeouts. The image is
+built before the candidate patch is supplied; runtime patch execution receives
+no API key or host credential.
 
-The `lab/` directory contains three deliberately vulnerable snapshots (SQL
-injection, IDOR, and path traversal), their fixed reference implementations,
-security/regression/holdout tests, and known-bad patches. Lab tests bind only
-to loopback on an ephemeral port. `npm test` confirms both that the original
-snapshots are exploitable and that the reference fixes pass their checks.
+Verdicts include `VERIFIED_FIX`, `FAILED_FIX`, `REGRESSION`, `FALSE_SUCCESS`,
+`INVALID_PATCH`, `INVALID_CASE`, and `SANDBOX_ERROR`. `FALSE_SUCCESS` means
+visible security checks passed but a holdout or behaviour check did not.
 
-**The vulnerable snapshots are for this bundled lab only. Never deploy or
-expose them to a network.** They are not used as the default application.
+## Limitations
+
+- Only three small local demonstration cases are implemented: SQL injection
+  (CWE-89), IDOR/BOLA (CWE-639), and path traversal (CWE-22). There is no
+  general codebase scanner, automatic case generator, or support for arbitrary
+  application test suites.
+- Hidden tests are withheld from the model prompt, but they are present in
+  this public repository and visible to people. They are independent checks,
+  not secret oracles.
+- A passing finite test suite is evidence for these cases, not proof of
+  security for all inputs or environments. The lab and its holdouts are small
+  and cannot represent production systems.
+- Docker isolation is a risk-reduction boundary, not a formal proof against
+  kernel, runtime, or supply-chain vulnerabilities. Do not run this on a host
+  whose Docker daemon is shared with sensitive workloads.
+- Anthropic proposals send the bundled source and visible tests to Anthropic.
+  Do not point the provider at private application data. Mock runs are fully
+  local and deterministic.
+- Real-model outputs can vary with model/provider revisions. The model ID,
+  parameters, prompt, and hashes are recorded; this does not make a live API
+  response deterministic.
+- This project does not claim to solve AI security or to establish that a
+  proposed fix is safe outside the tested case.
+
+## How this was built
+
+This project was built with an AI coding agent under the project owner's
+direction and review. The owner approved the staged plan, reviewed changes,
+and used targeted tests and explicit sandbox boundaries. The agent did not
+replace human review or independently establish production readiness.
+
+## Vulnerable lab warning
+
+`lab/` intentionally contains vulnerable source snapshots and deliberately
+unsafe examples. They exist only for the bundled local tests. **Never deploy,
+expose, or reuse these snapshots in a real application.** The tests bind only
+to loopback on ephemeral ports. PatchProof is intended for this local lab and
+authorized defensive research.
+
+See [docs/METHODOLOGY.md](docs/METHODOLOGY.md),
+[docs/THREAT_MODEL.md](docs/THREAT_MODEL.md), and
+[docs/DECISIONS.md](docs/DECISIONS.md) for the experiment design and security
+assumptions. Personal demo/interview notes are kept in the ignored
+`INTERVIEW_NOTES.md` file and are not included in commits.
