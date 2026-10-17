@@ -1,0 +1,11 @@
+FROM node:22.22.1-bookworm-slim
+WORKDIR /opt/patchproof
+COPY package.json package-lock.json tsconfig.json tsconfig.sandbox.json ./
+RUN npm ci
+COPY lab ./lab
+COPY sandbox ./sandbox
+COPY src ./src
+RUN npm run build:sandbox
+ENV HOME=/tmp
+USER 10001:10001
+ENTRYPOINT ["node", "/opt/patchproof/dist-sandbox/sandbox/runner.js"]

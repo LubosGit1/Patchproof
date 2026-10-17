@@ -10,11 +10,16 @@
   "engines": {
     "node": ">=22.13 <23"
   },
+  "dependencies": {
+    "diff": "8.0.3"
+  },
   "scripts": {
     "build": "tsc",
+    "build:sandbox": "tsc -p tsconfig.sandbox.json",
     "dev": "tsx src/cli.ts",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "typecheck": "tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.sandbox.json",
+    "sandbox:build": "docker build --file Dockerfile.sandbox --tag patchproof-sandbox:0.1.0 .",
     "test": "vitest run"
   },
   "devDependencies": {

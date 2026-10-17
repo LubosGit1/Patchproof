@@ -3,6 +3,7 @@
 !.env.example
 node_modules/
 dist/
+dist-sandbox/
 coverage/
 results/*
 !results/.gitkeep
