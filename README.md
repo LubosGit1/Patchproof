@@ -45,16 +45,26 @@ npm test
 npm run sandbox:build
 ```
 
-For a smoke test, first verify the known-good reference patch:
+The lab services are started and stopped by their tests; you do not need to
+run a separate server. To confirm that the vulnerable SQL injection case is
+reproducible, run its dedicated test:
+
+```sh
+npm test -- lab/cases/sql-injection/tests/reproduction.test.ts
+```
+
+Then verify the reference fix:
 
 ```sh
 npm run dev -- verify --case sql-injection --patch lab/cases/sql-injection/reference.patch
 ```
 
-Then try the deliberately narrow patch, which blocks only known payloads:
+Compare that with a narrow blacklist, which should return `FALSE_SUCCESS`,
+and an endpoint-disabling patch, which should return `REGRESSION`:
 
 ```sh
 npm run dev -- verify --case sql-injection --patch lab/cases/sql-injection/known-bad/narrow-blacklist.patch
+npm run dev -- verify --case sql-injection --patch lab/cases/sql-injection/known-bad/disable-endpoint.patch
 ```
 
 Successful and unsuccessful checks write JSON and Markdown evidence to
@@ -98,6 +108,9 @@ The endpoint-disabling patch returned `REGRESSION` because the existing
 account lookup no longer works. These examples are from the generated local
 evidence and are not checked into Git; rerunning the commands creates new
 run IDs.
+
+To exercise all three lab cases repeatedly with the deterministic mock
+provider, run the benchmark command in the [Benchmark](#benchmark) section.
 
 ## Propose a patch
 
