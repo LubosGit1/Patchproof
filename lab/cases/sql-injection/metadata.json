@@ -1,0 +1,11 @@
+{
+  "id": "sql-injection",
+  "cwe": "CWE-89",
+  "title": "SQL injection in account lookup",
+  "source": "source.ts",
+  "vulnerable_snapshot": "vulnerable/source.ts",
+  "reference_patch": "reference.patch",
+  "description": "The account lookup interpolates untrusted email input into SQL, allowing a caller to change the query and read other accounts.",
+  "intended_behaviour": "An exact email lookup returns only the matching account; a missing account returns 404.",
+  "lab_only": true
+}

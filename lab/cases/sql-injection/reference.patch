@@ -1,0 +1,9 @@
+diff --git a/source.ts b/source.ts
+--- a/source.ts
++++ b/source.ts
+@@ -37,3 +37,3 @@
+-      .prepare(`SELECT id, email, role FROM accounts WHERE email = '${email}'`)
+-      .all()
++      .prepare('SELECT id, email, role FROM accounts WHERE email = ?')
++      .all(email)
+       .map((row) => ({ id: Number(row.id), email: String(row.email), role: String(row.role) }));

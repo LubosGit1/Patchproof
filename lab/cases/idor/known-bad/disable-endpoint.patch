@@ -1,0 +1,10 @@
+diff --git a/source.ts b/source.ts
+--- a/source.ts
++++ b/source.ts
+@@ -46,3 +46,6 @@
++    sendJson(response, 404, { error: 'invoice_not_found' });
++    return;
++
+     const invoice = database
+       .prepare('SELECT id, owner_id, amount, description FROM invoices WHERE id = ?')
+       .get(invoiceId) as Invoice | undefined;

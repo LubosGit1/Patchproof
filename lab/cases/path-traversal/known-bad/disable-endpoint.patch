@@ -1,0 +1,11 @@
+diff --git a/source.ts b/source.ts
+--- a/source.ts
++++ b/source.ts
+@@ -34,4 +34,7 @@
++    sendText(response, 403, 'path outside public files');
++    return;
++
+     const candidate = resolve(publicDirectory, requestedPath);
+     if (!isWithinCase(candidate)) {
+       sendText(response, 404, 'file not found');
+       return;

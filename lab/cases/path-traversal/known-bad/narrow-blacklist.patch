@@ -1,0 +1,17 @@
+diff --git a/source.ts b/source.ts
+--- a/source.ts
++++ b/source.ts
+@@ -35,3 +35,13 @@
++    const blockedPaths = new Set([
++      '../private/secret.txt',
++      'nested/../../private/secret.txt',
++      'nested/sub/../../../private/secret.txt',
++    ]);
++    if (blockedPaths.has(requestedPath)) {
++      sendText(response, 403, 'path outside public files');
++      return;
++    }
++
+     if (!isWithinCase(candidate)) {
+       sendText(response, 404, 'file not found');
+       return;

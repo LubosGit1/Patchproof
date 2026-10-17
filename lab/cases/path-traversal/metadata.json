@@ -1,0 +1,12 @@
+{
+  "id": "path-traversal",
+  "cwe": "CWE-22",
+  "title": "Path traversal in lab file download",
+  "source": "source.ts",
+  "vulnerable_snapshot": "vulnerable/source.ts",
+  "reference_patch": "reference.patch",
+  "description": "The download endpoint resolves an untrusted relative path from the public files directory without requiring the final path to remain inside that directory.",
+  "intended_behaviour": "Callers can read published files, but paths outside the public files directory are rejected.",
+  "lab_only": true,
+  "containment": "The vulnerable snapshot has an additional lab-directory boundary so the demonstration can only read its bundled fixtures."
+}

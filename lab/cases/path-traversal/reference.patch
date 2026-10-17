@@ -1,0 +1,24 @@
+diff --git a/source.ts b/source.ts
+--- a/source.ts
++++ b/source.ts
+@@ -2,3 +2,3 @@
+ import { readFile } from 'node:fs/promises';
+-import { relative, resolve, sep } from 'node:path';
++import { isAbsolute, relative, resolve, sep } from 'node:path';
+ import { fileURLToPath } from 'node:url';
+@@ -14,5 +14,6 @@
+ function isWithinCase(candidate: string): boolean {
+-  const pathFromCase = relative(caseDirectory, candidate);
+-  return pathFromCase !== '..'
+-    && !pathFromCase.startsWith(`..${sep}`);
++  const pathFromCase = relative(publicDirectory, candidate);
++  return pathFromCase !== '..'
++    && !pathFromCase.startsWith(`..${sep}`)
++    && !isAbsolute(pathFromCase);
+ }
+@@ -35,3 +35,3 @@
+-    if (!isWithinCase(candidate)) {
+-      sendText(response, 404, 'file not found');
++    if (!isWithinCase(candidate)) {
++      sendText(response, 403, 'path outside public files');
+       return;

@@ -8,7 +8,7 @@
     "patchproof": "./dist/cli.js"
   },
   "engines": {
-    "node": ">=22 <23"
+    "node": ">=22.13 <23"
   },
   "scripts": {
     "build": "tsc",

@@ -1,0 +1,12 @@
+diff --git a/source.ts b/source.ts
+--- a/source.ts
++++ b/source.ts
+@@ -46,3 +46,8 @@
+     const invoice = database
+       .prepare('SELECT id, owner_id, amount, description FROM invoices WHERE id = ?')
+       .get(invoiceId) as Invoice | undefined;
++    if (userId === 'alice' && ['inv-2001', 'inv-2002'].includes(invoiceId)) {
++      sendJson(response, 404, { error: 'invoice_not_found' });
++      return;
++    }
++

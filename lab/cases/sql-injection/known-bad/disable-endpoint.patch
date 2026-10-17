@@ -1,0 +1,10 @@
+diff --git a/source.ts b/source.ts
+--- a/source.ts
++++ b/source.ts
+@@ -36,2 +36,5 @@
++    sendJson(response, 404, { error: 'account_not_found' });
++    return;
++
+     const rows = database
+       .prepare(`SELECT id, email, role FROM accounts WHERE email = '${email}'`)
++

@@ -1,0 +1,9 @@
+diff --git a/source.ts b/source.ts
+--- a/source.ts
++++ b/source.ts
+@@ -47,3 +47,3 @@
+-      .prepare('SELECT id, owner_id, amount, description FROM invoices WHERE id = ?')
+-      .get(invoiceId) as Invoice | undefined;
++      .prepare('SELECT id, owner_id, amount, description FROM invoices WHERE id = ? AND owner_id = ?')
++      .get(invoiceId, userId) as Invoice | undefined;
+     if (!invoice) {

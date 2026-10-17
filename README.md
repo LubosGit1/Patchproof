@@ -7,7 +7,7 @@ demonstration application are not implemented yet.
 
 ## Development setup
 
-Requirements: Node.js 22 and npm.
+Requirements: Node.js 22.13 or newer within the Node 22 major release, and npm.
 
 ```sh
 npm ci
@@ -36,5 +36,11 @@ verification-pipeline phase.
 
 ## Project status
 
-The `lab/` directory, once added, will contain intentionally vulnerable code
-for local demonstrations only and must never be deployed.
+The `lab/` directory contains three deliberately vulnerable snapshots (SQL
+injection, IDOR, and path traversal), their fixed reference implementations,
+security/regression/holdout tests, and known-bad patches. Tests bind only to
+loopback on an ephemeral port. `npm test` confirms both that the original
+snapshots are exploitable and that the reference fixes pass the checks.
+
+**The vulnerable snapshots are for this bundled lab only. Never deploy or
+expose them to a network.** They are not used as the default application.

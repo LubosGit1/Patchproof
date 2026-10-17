@@ -1,0 +1,12 @@
+{
+  "id": "idor",
+  "cwe": "CWE-639",
+  "title": "Broken object-level authorization on invoice lookup",
+  "source": "source.ts",
+  "vulnerable_snapshot": "vulnerable/source.ts",
+  "reference_patch": "reference.patch",
+  "description": "The invoice lookup checks authentication but selects an invoice by its identifier alone, so one user can read another user's invoice.",
+  "intended_behaviour": "Authenticated users can read their own invoices; invoices owned by another user are not disclosed.",
+  "owasp_api_category": "API1:2023 Broken Object Level Authorization",
+  "lab_only": true
+}
