@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+coverage/
+results/*
+!results/.gitkeep
+INTERVIEW_NOTES.md
