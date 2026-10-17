@@ -7,4 +7,3 @@ diff --git a/source.ts b/source.ts
 +
      const rows = database
        .prepare(`SELECT id, email, role FROM accounts WHERE email = '${email}'`)
-+

@@ -3,8 +3,8 @@
 PatchProof is an open-source project to test whether a proposed security fix
 removes a vulnerability without breaking expected application behaviour. It is
 being built in small, tested phases. The current implementation verifies
-unified diffs against a bundled lab; provider and benchmark commands are still
-to come.
+unified diffs against a bundled lab, supports deterministic mock and Anthropic
+providers, and runs repeatable benchmarks.
 
 ## Development setup
 
@@ -43,9 +43,48 @@ bounded writable tmpfs. Docker image construction installs pinned project
 dependencies before any candidate patch is run; the verification container
 itself has no network and receives no host credentials.
 
+## Propose a patch
+
+The mock provider is deterministic and requires no credentials:
+
+```sh
+npm run dev -- propose --case sql-injection --provider mock
+```
+
+This stores `candidate.diff` and `proposal.json` under `results/proposals/`.
+The JSON records the exact prompt, model ID, parameters, and hashes. Mock
+attempts cycle through a reference fix, an ineffective fix, a narrow blacklist,
+an endpoint-disabling patch, and an invalid diff. Use `--attempt N` to select
+the deterministic scenario for an individual proposal.
+
+Anthropic is opt-in and requires an API key from the environment. Do not put
+secrets in source control:
+
+```sh
+ANTHROPIC_API_KEY=... npm run dev -- propose --case sql-injection --provider anthropic
+```
+
+`ANTHROPIC_MODEL` may override the provider's default model ID. The proposal
+prompt includes only the vulnerable source, case description, and visible
+security/regression tests; holdout tests and known patches are excluded.
+
+## Benchmark
+
+Run five deterministic mock attempts for each case (Docker required):
+
+```sh
+npm run bench -- --provider mock --attempts 5
+```
+
+The JSON and Markdown report are written under `results/benchmarks/`. Rates
+are reported for each verifier verdict. The report also compares the naive
+checker (accept if visible security tests pass) with PatchProof's
+`VERIFIED_FIX` verdict, including naive false accepts rejected by regression,
+holdout, or behaviour checks. CI runs this mock benchmark without an API key.
+
 ## Docker
 
-Build and run the CLI scaffold:
+Build and run the packaged CLI:
 
 ```sh
 docker build -t patchproof .

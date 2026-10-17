@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { chmod, lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { basename, join, relative, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -143,9 +143,10 @@ async function runInSandbox(
   caseId: CaseId,
   patchText: string,
 ): Promise<SandboxRunResult> {
-  await buildSandboxImage(projectRoot);
+  await ensureSandboxImage(projectRoot);
   const inputDirectory = await mkdtemp(join(tmpdir(), 'patchproof-input-'));
   try {
+    await chmod(inputDirectory, 0o711);
     const inputPath = join(inputDirectory, 'patch.diff');
     await writeFile(inputPath, patchText, { mode: 0o444 });
     const command = runSandboxContainer(projectRoot, inputDirectory, caseId);
@@ -155,6 +156,7 @@ async function runInSandbox(
     } catch (error) {
       throw new Error(`Sandbox returned invalid JSON: ${errorMessage(error)}; ${command.stderr}`);
     }
+
     if (!isSandboxRunResult(parsed)) {
       throw new Error(`Sandbox returned an invalid result: ${command.stderr}`);
     }
@@ -162,6 +164,19 @@ async function runInSandbox(
   } finally {
     await rm(inputDirectory, { recursive: true });
   }
+}
+
+const sandboxImageBuilds = new Map<string, Promise<void>>();
+
+function ensureSandboxImage(projectRoot: string): Promise<void> {
+  const existing = sandboxImageBuilds.get(projectRoot);
+  if (existing) return existing;
+
+  const building = Promise.resolve()
+    .then(() => buildSandboxImage(projectRoot))
+    .then(() => undefined);
+  sandboxImageBuilds.set(projectRoot, building);
+  return building;
 }
 
 async function writeEvidence(

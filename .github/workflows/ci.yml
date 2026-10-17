@@ -25,3 +25,4 @@ jobs:
       - run: npm test
         env:
           PATCHPROOF_DOCKER_INTEGRATION: '1'
+      - run: npm run bench:ci

@@ -14,7 +14,8 @@ describe('CLI bootstrap', () => {
     const output: string[] = [];
 
     expect(await runCli(['--help'], (message) => output.push(message))).toBe(0);
-    expect(output[0]).toContain('Usage:');
+    expect(output[0]).toContain('patchproof propose --case');
+    expect(output[0]).toContain('patchproof bench --provider');
   });
 
   it('rejects unknown commands', async () => {
@@ -29,5 +30,18 @@ describe('CLI bootstrap', () => {
 
     expect(await runCli(['verify'], (message) => output.push(message))).toBe(2);
     expect(output[0]).toContain('Usage: patchproof verify');
+  });
+
+  it('rejects unknown provider names before running a proposal', async () => {
+    const output: string[] = [];
+
+    expect(await runCli([
+      'propose',
+      '--case',
+      'sql-injection',
+      '--provider',
+      'unknown',
+    ], (message) => output.push(message))).toBe(2);
+    expect(output[0]).toContain('Choose mock or anthropic');
   });
 });

@@ -20,6 +20,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p tsconfig.sandbox.json",
     "sandbox:build": "docker build --file Dockerfile.sandbox --tag patchproof-sandbox:0.1.0 .",
+    "bench": "tsx src/cli.ts bench",
+    "bench:ci": "tsx src/benchmark/ci.ts",
     "test": "vitest run"
   },
   "devDependencies": {
