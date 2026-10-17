@@ -59,17 +59,17 @@ npm run dev -- verify --case sql-injection --patch lab/cases/sql-injection/known
 
 Successful and unsuccessful checks write JSON and Markdown evidence to
 `results/<case>/<run-id>/`. The CLI prints the verdict and relative evidence
-paths. The following are representative CLI responses; run IDs and evidence
-directories are generated for each run:
+paths. These are captured outputs from real Docker sandbox runs in this
+repository:
 
 ```json
 {
   "verdict": "VERIFIED_FIX",
   "reasoning": "The patch reproduces the baseline flaw, passes security and regression checks, and preserves holdout and behaviour checks.",
-  "runId": "<generated-run-id>",
+  "runId": "20261017T145514414Z-8dd9b38b",
   "evidence": {
-    "json": "results/sql-injection/<generated-run-id>/verification.json",
-    "markdown": "results/sql-injection/<generated-run-id>/verification.md"
+    "json": "results/sql-injection/20261017T145514414Z-8dd9b38b/verification.json",
+    "markdown": "results/sql-injection/20261017T145514414Z-8dd9b38b/verification.md"
   }
 }
 ```
@@ -80,24 +80,24 @@ The patch that disables the endpoint instead produces `REGRESSION`. These are
 expected outcomes, not a promise that arbitrary patches can be classified
 perfectly.
 
-For example, the narrow blacklist's response has this shape:
+The narrow blacklist was also run in the sandbox and returned:
 
 ```json
 {
   "verdict": "FALSE_SUCCESS",
   "reasoning": "Visible checks pass, but at least one hidden holdout test fails.",
-  "runId": "<generated-run-id>",
+  "runId": "20261017T145514670Z-6cc5d26e",
   "evidence": {
-    "json": "results/sql-injection/<generated-run-id>/verification.json",
-    "markdown": "results/sql-injection/<generated-run-id>/verification.md"
+    "json": "results/sql-injection/20261017T145514670Z-6cc5d26e/verification.json",
+    "markdown": "results/sql-injection/20261017T145514670Z-6cc5d26e/verification.md"
   }
 }
 ```
 
-The Docker daemon was not accessible in the environment used to prepare this
-repository update, so these snippets document the CLI response contract and
-are not claimed as captured end-to-end run logs. A successful Docker run should
-be captured before presenting them as observed output.
+The endpoint-disabling patch returned `REGRESSION` because the existing
+account lookup no longer works. These examples are from the generated local
+evidence and are not checked into Git; rerunning the commands creates new
+run IDs.
 
 ## Propose a patch
 
@@ -141,6 +141,24 @@ counts and rates for each verdict overall and by case, per-attempt evidence
 paths, model IDs, naive-checker accepts, and false accepts. The Markdown
 compares the naive rule ("the visible security test passes") with PatchProof's
 `VERIFIED_FIX` verdict.
+
+One completed mock run on Node `v22.22.1` (benchmark
+`20261017T145407459Z-02789cb2`, 5 attempts per case) produced:
+
+| Verdict | Count | Rate |
+|---|---:|---:|
+| `VERIFIED_FIX` | 3 | 20% |
+| `FAILED_FIX` | 3 | 20% |
+| `REGRESSION` | 3 | 20% |
+| `FALSE_SUCCESS` | 3 | 20% |
+| `INVALID_PATCH` | 3 | 20% |
+| `INVALID_CASE` | 0 | 0% |
+| `SANDBOX_ERROR` | 0 | 0% |
+
+The naive checker accepted 9/15 attempts, including 6 that PatchProof did not
+verify; PatchProof verified 3. This deterministic mock result validates the
+benchmark wiring and known fixtures. It is not a measurement of Anthropic or
+any other model's fix rate.
 
 CI runs this mock benchmark and fails if it does not catch at least one
 false-success case. A separate manually triggered GitHub Actions workflow runs
